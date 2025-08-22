@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Lecture Assistant</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            padding: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h1, h2 {
+            color: #2c3e50;
+        }
+        form {
+            background: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="radio"] {
+            margin-right: 5px;
+        }
+        input[type="file"], input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .results-section {
+            margin-top: 30px;
+        }
+        pre {
+            background: #ecf0f1;
+            padding: 15px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .quiz-item {
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 15px;
+        }
+        .quiz-item ul {
+            list-style: none;
+            padding: 0;
+        }
+        .quiz-item li {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>AI Lecture Assistant 📚</h1>
+        <p>Summarize and quiz yourself on any lecture. Choose your input method below.</p>
+
+        <form id="process-form">
+            <div class="form-group">
+                <label>
+                    <input type="radio" name="type" value="record" checked> Record My Own Audio
+                </label>
+                <label>
+                    <input type="radio" name="type" value="upload"> Upload Audio/Video File
+                </label>
+                <label>
+                    <input type="radio" name="type" value="url"> Use a URL (YouTube, etc.)
+                </label>
+            </div>
+            
+            <div id="record-options" class="form-group">
+                <label for="duration">Recording Duration (seconds):</label>
+                <input type="number" id="duration" name="duration" value="10" min="1">
+            </div>
+            
+            <div id="upload-options" class="form-group" style="display:none;">
+                <label for="file">Choose file:</label>
+                <input type="file" id="file" name="file" accept="audio/*,video/*">
+            </div>
+            
+            <div id="url-options" class="form-group" style="display:none;">
+                <label for="url">Enter the URL:</label>
+                <input type="text" id="url" name="url">
+            </div>
+
+            <button type="submit">Process Lecture</button>
+        </form>
+
+        <hr>
+
+        <div id="results" class="results-section">
+            <div id="loading-spinner" style="display:none; text-align: center;">
+                <p>Processing... This may take a few moments. ✨</p>
+            </div>
+            
+            <h2>Summary</h2>
+            <pre id="summary-output">A concise summary of the lecture will be generated here.</pre>
+            
+            <h2>Quiz</h2>
+            <div id="quiz-output">
+                <p>The quiz will be generated here. Get ready to test your knowledge! 🧠</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('process-form');
+        const typeRadios = document.getElementsByName('type');
+        const recordOptions = document.getElementById('record-options');
+        const uploadOptions = document.getElementById('upload-options');
+        const urlOptions = document.getElementById('url-options');
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const summaryOutput = document.getElementById('summary-output');
+        const quizOutput = document.getElementById('quiz-output');
+        
+        let answerKey = {};
+        let originalTranscript = "";
+
+        // Function to toggle input sections
+        typeRadios.forEach(radio => {
+            radio.addEventListener('change', () => {
+                recordOptions.style.display = 'none';
+                uploadOptions.style.display = 'none';
+                urlOptions.style.display = 'none';
+                if (radio.value === 'record') {
+                    recordOptions.style.display = 'block';
+                } else if (radio.value === 'upload') {
+                    uploadOptions.style.display = 'block';
+                } else if (radio.value === 'url') {
+                    urlOptions.style.display = 'block';
+                }
+            });
+        });
+
+        // Form submission handler
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(form);
+            loadingSpinner.style.display = 'block';
+            summaryOutput.textContent = '';
+            quizOutput.innerHTML = '';
+            
+            try {
+                const response = await fetch('/process', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert("Error: " + data.error);
+                    return;
+                }
+
+                summaryOutput.textContent = data.summary;
+                originalTranscript = data.transcript;
+                answerKey = data.answer_key;
+                displayQuiz(data.quiz);
+
+            } catch (error) {
+                alert("An error occurred. Please check the console for details.");
+                console.error("Fetch Error:", error);
+            } finally {
+                loadingSpinner.style.display = 'none';
+            }
+        });
+
+        // Display quiz
+        function displayQuiz(quiz) {
+            quizOutput.innerHTML = '<h3>Quiz Time!</h3>';
+            quiz.forEach((q, index) => {
+                const qNum = index + 1;
+                const quizItem = document.createElement('div');
+                quizItem.className = 'quiz-item';
+                quizItem.innerHTML = `
+                    <p><strong>${qNum}. ${q.question}</strong></p>
+                    <ul>
+                        <li><label><input type="radio" name="q${qNum}" value="A"> A) ${q.options.A}</label></li>
+                        <li><label><input type="radio" name="q${qNum}" value="B"> B) ${q.options.B}</label></li>
+                        <li><label><input type="radio" name="q${qNum}" value="C"> C) ${q.options.C}</label></li>
+                        <li><label><input type="radio" name="q${qNum}" value="D"> D) ${q.options.D}</label></li>
+                    </ul>
+                `;
+                quizOutput.appendChild(quizItem);
+            });
+            
+            const submitButton = document.createElement('button');
+            submitButton.textContent = 'Submit Quiz';
+            submitButton.onclick = submitQuiz;
+            quizOutput.appendChild(submitButton);
+        }
+
+        // Quiz submission
+        async function submitQuiz() {
+            const userAnswers = {};
+            const totalQuestions = Object.keys(answerKey).length;
+            for (let i = 1; i <= totalQuestions; i++) {
+                const selected = document.querySelector(`input[name="q${i}"]:checked`);
+                if (selected) {
+                    userAnswers[i] = selected.value;
+                }
+            }
+
+            try {
+                const response = await fetch('/submit_quiz', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        user_answers: userAnswers,
+                        answer_key: answerKey,
+                        transcript: originalTranscript
+                    })
+                });
+
+                const data = await response.json();
+                
+                alert(`Your final score: ${data.score} out of ${data.total}`);
+                
+                const notes = document.createElement('div');
+                notes.innerHTML = `<br><h3>Extended Notes on Weak Topics</h3><pre>${data.notes}</pre>`;
+                quizOutput.appendChild(notes);
+
+            } catch (error) {
+                alert("An error occurred during quiz submission.");
+                console.error("Submission Error:", error);
+            }
+        }
+    </script>
+</body>
+</html>
