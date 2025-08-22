@@ -1,8 +1,6 @@
 import os
 import yt_dlp
 import whisper
-import sounddevice as sd
-import wave
 import subprocess
 from together import Together
 import re
@@ -19,19 +17,7 @@ client = Together(api_key="9bed3ed14a70a199a753547a90c53da4f45468ce3c7b9f7ffa9a3
 # =========================
 # UTILITY FUNCTIONS
 # =========================
-def record_audio_to_tempfile(duration=10, samplerate=44100):
-    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmpfile:
-        filename = tmpfile.name
-        print(f"🎙️ Recording for {duration} seconds...")
-        recording = sd.rec(int(duration * samplerate), samplerate=samplerate, channels=1, dtype="int16")
-        sd.wait()
-        with wave.open(filename, "wb") as wf:
-            wf.setnchannels(1)
-            wf.setsampwidth(2)
-            wf.setframerate(samplerate)
-            wf.writeframes(recording.tobytes())
-        print(f"✅ Recording saved as {filename}")
-        return filename
+
 
 def download_from_url(url, output_path="downloads"):
     os.makedirs(output_path, exist_ok=True)
@@ -196,13 +182,7 @@ def process_data():
     transcript = None
     
     try:
-        if data_type == 'record':
-            duration = int(request.form.get('duration', 10))
-            recorded_file = record_audio_to_tempfile(duration=duration)
-            transcript = transcribe_audio(recorded_file)
-            os.remove(recorded_file)
-        
-        elif data_type == 'upload':
+        if data_type == 'upload':
             if 'file' not in request.files:
                 return jsonify({"error": "No file part"}), 400
             file = request.files['file']
