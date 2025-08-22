@@ -1,7 +1,6 @@
 flask
 yt-dlp
 openai-whisper
-sounddevice
 together
 numpy
 torch
