@@ -6,3 +6,4 @@ together
 numpy
 torch
 ffmpeg-python
+gunicorn
